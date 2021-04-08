@@ -18,6 +18,8 @@ uint32_t sendCount = 0;
 String recv = "";
 char buf[256];
 
+AXP20X_Class axp;
+
 
 void createWin();
 void add_message(const char *txt);
@@ -48,6 +50,9 @@ static void event_handler(lv_obj_t *obj, lv_event_t event)
     } else if (obj == btn2) {
         state = 2;
         add_message("Lora Received...");
+    } else if (obj == btn3) {
+        state = 3;
+        add_message("Shutting down screen...");
     }
 
 }
@@ -141,6 +146,8 @@ void setup(void)
     ttgo->tft->fillScreen(TFT_BLACK);
     ttgo->openBL();
 
+    ttgo->setBrightness(150);
+
     ttgo->lvgl_begin();
 
     //! Open lora module power
@@ -205,6 +212,13 @@ void loop(void)
             add_message(buf);
         }
         break;
+    case 3:
+        vTaskDelay(3000 / portTICK_PERIOD_MS);
+        //ttgo->closeBL();
+        ttgo->displayOff();
+        vTaskDelay(3000 / portTICK_PERIOD_MS);
+        ttgo->displayWakeup();
+        //ttgo->openBL();
     default:
         break;
     }
