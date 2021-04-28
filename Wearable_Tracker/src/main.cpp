@@ -11,6 +11,7 @@ git clone https://github.com/sandeepmistry/arduino-LoRa.git
 TTGOClass *ttgo;
 
 AXP20X_Class *power;
+BMA *sensor;
 TFT_eSPI *tft;
 
 bool irq = false, isScreenOn = true;
@@ -19,7 +20,7 @@ uint8_t brightness = 150;
 
 uint32_t state = 0, prev_state = 0;
 bool isInit = false;
-lv_obj_t *btn2, *btn1, *ta1, *gContainer, *btn3, *btn4, *btn5, *isConnected, *btn_brightness_plus, *btn_brightness_minus;
+lv_obj_t *btn2, *btn1, *ta1, *gContainer, *btn3, *btn4, *btn5, *btn6, *isConnected, *btn_brightness_plus, *btn_brightness_minus;
 SPIClass LoraSPI(HSPI);
 uint32_t sendCount = 0;
 String recv = "";
@@ -42,6 +43,7 @@ void add_message(const char *txt);
 #endif
 
 //Function prototypes
+void bma();
 void batteryState();
 
 /*Thingspeak*/
@@ -128,6 +130,67 @@ static void event_handler(lv_obj_t *obj, lv_event_t event)
         lv_obj_align(isConnected, NULL, LV_ALIGN_CENTER, 0, 0);
     } else if (obj == btn5){
         state = 5;
+    } else if (obj == btn6){
+
+        sensor = ttgo->bma;
+        // Accel parameter structure
+        Acfg cfg;
+        /*!
+            Output data rate in Hz, Optional parameters:
+                - BMA4_OUTPUT_DATA_RATE_0_78HZ
+                - BMA4_OUTPUT_DATA_RATE_1_56HZ
+                - BMA4_OUTPUT_DATA_RATE_3_12HZ
+                - BMA4_OUTPUT_DATA_RATE_6_25HZ
+                - BMA4_OUTPUT_DATA_RATE_12_5HZ
+                - BMA4_OUTPUT_DATA_RATE_25HZ
+                - BMA4_OUTPUT_DATA_RATE_50HZ
+                - BMA4_OUTPUT_DATA_RATE_100HZ
+                - BMA4_OUTPUT_DATA_RATE_200HZ
+                - BMA4_OUTPUT_DATA_RATE_400HZ
+                - BMA4_OUTPUT_DATA_RATE_800HZ
+                - BMA4_OUTPUT_DATA_RATE_1600HZ
+        */
+        cfg.odr = BMA4_OUTPUT_DATA_RATE_100HZ;
+        /*!
+            G-range, Optional parameters:
+                - BMA4_ACCEL_RANGE_2G
+                - BMA4_ACCEL_RANGE_4G
+                - BMA4_ACCEL_RANGE_8G
+                - BMA4_ACCEL_RANGE_16G
+        */
+        cfg.range = BMA4_ACCEL_RANGE_2G;
+        /*!
+            Bandwidth parameter, determines filter configuration, Optional parameters:
+                - BMA4_ACCEL_OSR4_AVG1
+                - BMA4_ACCEL_OSR2_AVG2
+                - BMA4_ACCEL_NORMAL_AVG4
+                - BMA4_ACCEL_CIC_AVG8
+                - BMA4_ACCEL_RES_AVG16
+                - BMA4_ACCEL_RES_AVG32
+                - BMA4_ACCEL_RES_AVG64
+                - BMA4_ACCEL_RES_AVG128
+        */
+        cfg.bandwidth = BMA4_ACCEL_NORMAL_AVG4;
+
+        /*! Filter performance mode , Optional parameters:
+            - BMA4_CIC_AVG_MODE
+            - BMA4_CONTINUOUS_MODE
+        */
+        cfg.perf_mode = BMA4_CONTINUOUS_MODE;
+
+        // Configure the BMA423 accelerometer
+        sensor->accelConfig(cfg);
+
+        // Enable BMA423 accelerometer
+        // Warning : Need to use steps, you must first enable the accelerometer
+        // Warning : Need to use steps, you must first enable the accelerometer
+        // Warning : Need to use steps, you must first enable the accelerometer
+        sensor->enableAccel();
+
+        sensor->enableFeature(BMA423_ACTIVITY, true);
+
+
+        state = 6;
     }
 
 }
@@ -205,6 +268,13 @@ static void menu1(){
 
     label = lv_label_create(btn5, NULL);
     lv_label_set_text(label, "lora thingspeak");
+
+    btn6 = lv_btn_create(gContainer, btn5);
+    lv_obj_align(btn6, btn5, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_obj_set_event_cb(btn6, event_handler);
+
+    label = lv_label_create(btn6, NULL);
+    lv_label_set_text(label, "bma");
 }
 
 static void  createGui(int menu)
@@ -280,6 +350,7 @@ void setup(void)
     LoRa.setSyncWord(52);
     LoRa.setCodingRate4(5);
     LoRa.setSignalBandwidth(125000);
+    //LoRa.setTxPower(20);
 
     int ret = 0;
     do {
@@ -314,10 +385,8 @@ void loop(void)
                 ttgo->closeBL();
             }
         }
-        Serial.println("yeyey");
         ttgo->power->clearIRQ();
     }
-    Serial.println("aaaaa");
     switch (state) {
     case 1:
         if (millis() - startmillis > 1000 ) {
@@ -356,11 +425,22 @@ void loop(void)
         break;
     case 5:
         lora_thingspeak();
+        break;
+    case 6:
+        bma();
+        break;
     default:
         break;
     }
     lv_task_handler();
     delay(5);
+}
+
+void bma(){
+
+    
+    String a = sensor->getActivity();
+    Serial.println(a);
 }
 
 void lora_thingspeak(){
